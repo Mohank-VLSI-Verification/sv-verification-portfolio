@@ -8,32 +8,32 @@ Functional verification of a D flip-flop with synchronous reset using a class-ba
 
 ```
 ┌─────────────────────────────────────────────────────┐
-│                   environment                        │
-│                                                      │
+│                   environment                       │
+│                                                     │
 │  ┌───────────┐   gdmbx    ┌──────────┐              │
-│  │ generator  │──────────→│  driver   │              │
+│  │ generator │──────────→ │  driver  │              │
 │  └───────────┘            └──────────┘              │
-│       │                        │                     │
-│       │ mbxref                 │ vif.din             │
-│       │                        ▼                     │
+│       │                        │                    │
+│       │ mbxref                 │ vif.din            │
+│       │                        ▼                    │
 │       │                   ┌──────────┐              │
-│       │                   │ dff (DUT) │              │
+│       │                   │ dff (DUT)│              │
 │       │                   └──────────┘              │
-│       │                        │                     │
-│       │                        │ vif.dout            │
-│       │                        ▼                     │
+│       │                        │                    │
+│       │                        │ vif.dout           │
+│       │                        ▼                    │
 │       │                   ┌──────────┐              │
-│       │                   │  monitor  │              │
+│       │                   │  monitor │              │
 │       │                   └──────────┘              │
-│       │                        │                     │
-│       │          msmbx         │                     │
-│       │                        ▼                     │
+│       │                        │                    │
+│       │          msmbx         │                    │
+│       │                        ▼                    │
 │       │               ┌──────────────┐              │
 │       └──────────────→│  scoreboard  │              │
-│            (golden ref)└──────────────┘              │
-│                               │                      │
-│                          sconext (event)             │
-│                          back to generator           │
+│           (golden ref)└──────────────┘              │
+│                               │                     │
+│                          sconext (event)            │
+│                          back to generator          │
 └─────────────────────────────────────────────────────┘
 ```
 
