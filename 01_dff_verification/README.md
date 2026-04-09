@@ -118,16 +118,6 @@ The original testbench (from course material) was functional but had several lim
 
 ---
 
-## How to Run
-
-```bash
-cd sim/
-xvlog -sv ../rtl/dff.sv ../tb/tb_top.sv ../assertions/dff_assertions.sv
-xelab -debug typical tb -s sim_snapshot
-xsim sim_snapshot -runall
-```
-
----
 
 ## Key Learnings
 
