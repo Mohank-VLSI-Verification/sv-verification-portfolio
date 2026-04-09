@@ -14,12 +14,12 @@ This portfolio demonstrates a structured approach to VLSI functional verificatio
 
 | # | Project | DUT Type | Status |
 |---|---------|----------|--------|
-| 01 | [D Flip-Flop Verification](./01_dff_verification/) | Sequential | ✅ Complete |
-| 02 | [FIFO Verification](./02_fifo_verification/) | Memory | 🔲 Planned |
-| 03 | [SPI Verification](./03_spi_verification/) | Interface Protocol | 🔲 Planned |
-| 04 | [UART Verification](./04_uart_verification/) | Interface Protocol | 🔲 Planned |
-| 05 | [APB Verification](./05_apb_verification/) | Bus Protocol | 🔲 Planned |
-| 06 | [Original Project](./06_original_project/) | TBD | 🔲 Planned |
+| 01 | [D Flip-Flop Verification](https://github.com/Mohank-VLSI-Verification/sv-verification-portfolio/tree/main/01_dff_verification) | Sequential | ✅ Complete |
+| 02 | [FIFO Verification](https://github.com/Mohank-VLSI-Verification/sv-verification-portfolio/tree/main/02_fifo_verification) | Memory | 🔲 Planned |
+| 03 | [SPI Verification](https://github.com/Mohank-VLSI-Verification/sv-verification-portfolio/tree/main/03_spi_verification) | Interface Protocol | 🔲 Planned |
+| 04 | [UART Verification](https://github.com/Mohank-VLSI-Verification/sv-verification-portfolio/tree/main/04_uart_verification) | Interface Protocol | 🔲 Planned |
+| 05 | [APB Verification](https://github.com/Mohank-VLSI-Verification/sv-verification-portfolio/tree/main/05_apb_verification) | Bus Protocol | 🔲 Planned |
+| 06 | [Original Project](https://github.com/Mohank-VLSI-Verification/sv-verification-portfolio/tree/main/06_original_project) | TBD | 🔲 Planned |
 
 ---
 
