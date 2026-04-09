@@ -56,29 +56,12 @@ sv-verification-portfolio/
 └── 06_original_project/
 ```
 
----
-
-## How to Run
-
-Each project contains a `sim/` directory with simulation scripts. General flow:
-
-```bash
-cd <project>/sim/
-# For Vivado XSIM:
-xvlog -sv ../rtl/*.sv ../tb/*.sv ../assertions/*.sv
-xelab -debug typical tb -s sim_snapshot
-xsim sim_snapshot -runall
-```
-
-Refer to individual project READMEs for specific instructions.
-
----
 
 ## Author
 
-**Chief**
-Verification Engineer (in training)
-Learning Path: Namaste FPGA → SystemVerilog & UVM Fundamentals
+Mohan Kalaiselvan
+Verification Engineer 
+Learning Path: SystemVerilog & UVM Fundamentals
 
 ---
 
