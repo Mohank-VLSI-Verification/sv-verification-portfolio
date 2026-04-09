@@ -119,17 +119,6 @@ Functional verification of a 16-deep, 8-bit wide synchronous FIFO using a class-
 
 ---
 
-## How to Run
-
-```bash
-cd sim/
-xvlog -sv ../rtl/fifo.sv ../tb/tb_top.sv ../assertions/fifo_assertions.sv
-xelab -debug typical tb -s sim_snapshot
-xsim sim_snapshot -runall
-```
-
----
-
 ## Key Learnings
 
 - Scoreboard golden model using SystemVerilog queue mirrors FIFO behavior perfectly (push_front for write, pop_back for read)
