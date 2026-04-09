@@ -8,11 +8,11 @@ Functional verification of a 16-deep, 8-bit wide synchronous FIFO using a class-
 
 ```
 ┌───────────────────────────────────────────────────────┐
-│                    environment                         │
-│                                                        │
-│  ┌───────────┐   gdmbx    ┌──────────┐               │
-│  │ generator  │──────────→│  driver   │               │
-│  └───────────┘            └──────────┘               │
+│                    environment                        │
+│                                                       │
+│  ┌───────────┐   gdmbx    ┌──────────┐                │
+│  │ generator │──────────→ │  driver  │                │
+│  └───────────┘            └──────────┘                │
 │       │                        │                      │
 │       │                        │ vif (wr, rd, data_in)│
 │       │                        ▼                      │
@@ -25,7 +25,7 @@ Functional verification of a 16-deep, 8-bit wide synchronous FIFO using a class-
 │       │                        │      full, empty)    │
 │       │                        ▼                      │
 │       │                  ┌───────────┐                │
-│       │                  │  monitor   │                │
+│       │                  │  monitor  │                │
 │       │                  └───────────┘                │
 │       │                        │                      │
 │       │          msmbx         │                      │
@@ -37,7 +37,7 @@ Functional verification of a 16-deep, 8-bit wide synchronous FIFO using a class-
 │       │               └───────────────┘               │
 │       │                       │                       │
 │       │                  nextgs (event)               │
-│       └←←←←←←←←←←←←←←←←←←←←┘                       │
+│       └←←←←←←←←←←←←←←←←←←←←┘                          │
 └───────────────────────────────────────────────────────┘
 ```
 
