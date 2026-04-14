@@ -15,11 +15,11 @@ This portfolio demonstrates a structured approach to VLSI functional verificatio
 | # | Project | DUT Type | Status |
 |---|---------|----------|--------|
 | 01 | [D Flip-Flop Verification](https://github.com/Mohank-VLSI-Verification/sv-verification-portfolio/tree/main/01_dff_verification) | Sequential | ✅ Complete |
-| 02 | [FIFO Verification](https://github.com/Mohank-VLSI-Verification/sv-verification-portfolio/tree/main/02_fifo_verification) | Memory | 🔲 Planned |
-| 03 | [SPI Verification](https://github.com/Mohank-VLSI-Verification/sv-verification-portfolio/tree/main/03_spi_verification) | Interface Protocol | 🔲 Planned |
-| 04 | [UART Verification](https://github.com/Mohank-VLSI-Verification/sv-verification-portfolio/tree/main/04_uart_verification) | Interface Protocol | 🔲 Planned |
-| 05 | [APB Verification](https://github.com/Mohank-VLSI-Verification/sv-verification-portfolio/tree/main/05_apb_verification) | Bus Protocol | 🔲 Planned |
-| 06 | [Original Project](https://github.com/Mohank-VLSI-Verification/sv-verification-portfolio/tree/main/06_original_project) | TBD | 🔲 Planned |
+| 02 | [FIFO Verification](https://github.com/Mohank-VLSI-Verification/sv-verification-portfolio/tree/main/02_fifo_verification) | Memory | ✅ Complete |
+| 03 | [SPI Verification](https://github.com/Mohank-VLSI-Verification/sv-verification-portfolio/tree/main/03_spi_verification) | Interface Protocol | ✅ Complete |
+| 04 | [UART Verification](https://github.com/Mohank-VLSI-Verification/sv-verification-portfolio/tree/main/04_uart_verification) | Interface Protocol | ✅ Complete |
+| 05 | [I2C Verification](https://github.com/Mohank-VLSI-Verification/sv-verification-portfolio/tree/main/05_apb_verification) | Bus Protocol | ✅ Complete |
+| 06 | [Original Project](https://github.com/Mohank-VLSI-Verification/sv-verification-portfolio/tree/main/06_original_project) | TBD | ✅ Complete |
 
 ---
 
