@@ -1,4 +1,4 @@
-# 05 — APB Verification
+# 05 — I2C Verification
 
 > **Status:** Planned
 
