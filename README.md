@@ -52,7 +52,7 @@ sv-verification-portfolio/
 ├── 02_fifo_verification/
 ├── 03_spi_verification/
 ├── 04_uart_verification/
-├── 05_apb_verification/
+├── 05_I2C_verification/
 └── 06_original_project/
 ```
 
