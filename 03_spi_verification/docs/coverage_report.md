@@ -4,29 +4,19 @@
 
 | Parameter | Value |
 |-----------|-------|
-| Simulator | Vivado XSIM |
-| Transactions | 10 |
+| Simulator | Vivado XSIM 2025.2 |
+| Transactions | 4 |
+| Sim Time | 28130 ns |
 | Seed | default |
-| Date | TODO |
-
-## Assertion Coverage
-
-| Assertion | Attempts | Pass | Fail |
-|-----------|----------|------|------|
-| p_cs_low_on_start | TODO | TODO | 0 |
-| p_cs_high_on_done | TODO | TODO | 0 |
-| p_done_eventually | TODO | TODO | 0 |
-| p_data_integrity | TODO | TODO | 0 |
-| p_mosi_idle | TODO | TODO | 0 |
 
 ## Scoreboard Summary
 
 | Metric | Count |
 |--------|-------|
-| PASS | TODO |
-| FAIL | TODO |
-| TOTAL | TODO |
+| PASS | 4 |
+| FAIL | 0 |
+| TOTAL | 4 |
 
-## Notes
+## Result
 
-> Update after running simulation.
+All 4 SPI transfers completed successfully. Master serialized 12-bit data LSB-first via MOSI, slave deserialized correctly. Data integrity verified for all transactions.
