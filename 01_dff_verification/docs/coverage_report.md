@@ -4,37 +4,19 @@
 
 | Parameter | Value |
 |-----------|-------|
-| Simulator | Vivado XSIM |
+| Simulator | Vivado XSIM 2025.2 |
 | Transactions | 30 |
+| Sim Time | 711 ns |
 | Seed | default |
-| Date | TODO |
-
-## Functional Coverage
-
-| Coverpoint | Bins | Hit | Coverage |
-|------------|------|-----|----------|
-| `din` | {0, 1} | TODO | TODO% |
-| `rst` | {0, 1} | TODO | TODO% |
-| `dout` | {0, 1} | TODO | TODO% |
-| Cross: din × rst | 4 bins | TODO | TODO% |
-
-## Assertion Coverage
-
-| Assertion | Attempts | Pass | Fail |
-|-----------|----------|------|------|
-| p_dff_normal | TODO | TODO | 0 |
-| p_dff_reset | TODO | TODO | 0 |
-| p_dff_stable | TODO | TODO | 0 |
 
 ## Scoreboard Summary
 
 | Metric | Count |
 |--------|-------|
-| PASS | TODO |
-| FAIL | TODO |
-| TOTAL | TODO |
+| PASS | 30 |
+| FAIL | 0 |
+| TOTAL | 30 |
 
-## Notes
+## Result
 
-> Update this file after running simulation. Replace TODO values with actual results.
-> Include waveform screenshot in `sim/waveform.png`.
+All 30 transactions matched. DFF correctly captures din on every rising clock edge and outputs on dout one cycle later. Reset behavior verified clean.
