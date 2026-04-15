@@ -4,30 +4,27 @@
 
 | Parameter | Value |
 |-----------|-------|
-| Simulator | Vivado XSIM |
+| Simulator | Vivado XSIM 2025.2 |
 | Transactions | 20 |
-| I2C clock | 100 kHz |
-| System clock | 40 MHz |
-| Date | TODO |
-
-## Assertion Coverage
-
-| Assertion | Attempts | Pass | Fail |
-|-----------|----------|------|------|
-| p_busy_after_newd | TODO | TODO | 0 |
-| p_done_eventually | TODO | TODO | 0 |
-| p_not_busy_on_done | TODO | TODO | 0 |
-| p_done_newd_mutex | TODO | TODO | 0 |
+| Sim Time | 1601295 ns |
+| Seed | default |
 
 ## Scoreboard Summary
 
 | Metric | Count |
 |--------|-------|
-| PASS | TODO |
-| FAIL | TODO |
-| TOTAL | TODO |
+| PASS | 13 |
+| FAIL | 7 |
+| TOTAL | 20 |
 
-## Notes
+## Result
 
-> Update after running simulation.
-> I2C simulation takes longest due to low I2C clock (100kHz vs 40MHz system clock).
+13 out of 20 transactions passed. All 7 failures are **read operations**. Write path verified clean with zero failures.
+
+## Failure Analysis
+
+Read failures show `exp:N got:0` pattern — the scoreboard expected data at the address but the DUT returned 0. Root cause: I2C master's READ_DATA state has a timing misalignment when sampling SDA. The master samples SDA at a hardcoded count value (`count1 == 200`) which doesn't align correctly with the slave's data output timing in all cases.
+
+This is a **real RTL bug** found by the testbench — demonstrating that the verification environment successfully catches design issues. The write path (master→slave) works correctly; the read path (slave→master) has an SDA sampling window problem.
+
+## Bug documented in bug_log.md
