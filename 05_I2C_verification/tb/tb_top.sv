@@ -2,13 +2,6 @@
 // tb_top: Top-level — instantiates I2C DUT, clock, and environment
 // =============================================================================
 
-`include "transaction.sv"
-`include "generator.sv"
-`include "driver.sv"
-`include "monitor.sv"
-`include "scoreboard.sv"
-`include "environment.sv"
-
 module tb;
 
   i2c_if vif();
