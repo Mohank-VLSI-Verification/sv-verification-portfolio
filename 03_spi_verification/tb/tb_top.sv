@@ -6,13 +6,6 @@
 //       since sclk is generated inside the master, not exposed at top level.
 // =============================================================================
 
-`include "transaction.sv"
-`include "generator.sv"
-`include "driver.sv"
-`include "monitor.sv"
-`include "scoreboard.sv"
-`include "environment.sv"
-
 module tb;
 
   spi_if vif();
