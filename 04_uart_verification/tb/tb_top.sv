@@ -4,12 +4,6 @@
 // Cross-module references used for internal baud clocks (uclktx, uclkrx)
 // =============================================================================
 
-`include "transaction.sv"
-`include "generator.sv"
-`include "driver.sv"
-`include "monitor.sv"
-`include "scoreboard.sv"
-`include "environment.sv"
 
 module tb;
 
