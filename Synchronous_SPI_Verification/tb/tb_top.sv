@@ -1,9 +1,5 @@
 // =============================================================================
-// tb_top: Top-level — instantiates SPI DUT, clock, and environment
-// =============================================================================
-// Note: vif.sclk is assigned from internal DUT signal (dut.m1.sclk)
-//       This is a cross-module reference — fragile but necessary here
-//       since sclk is generated inside the master, not exposed at top level.
+// tb_top: Top-level — instantiates SPI DUT, clock, environment, and assertions
 // =============================================================================
 
 module tb;
@@ -19,6 +15,17 @@ module tb;
     .done (vif.done)
   );
 
+  // Bind assertion module to DUT (top)
+  bind top spi_assertions u_assert (
+    .clk  (clk),
+    .rst  (rst),
+    .cs   (cs),
+    .newd (newd),
+    .done (done),
+    .din  (din),
+    .dout (dout)
+  );
+
   // Clock generation: 20ns period (50MHz)
   initial vif.clk <= 0;
   always #10 vif.clk <= ~vif.clk;
@@ -32,11 +39,6 @@ module tb;
     env = new(vif);
     env.gen.count = 10;
     env.run();
-  end
-
-  initial begin
-    $dumpfile("dump.vcd");
-    $dumpvars;
   end
 
 endmodule
