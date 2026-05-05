@@ -1,12 +1,6 @@
 // =============================================================================
 // SPI Master — generates sclk, sends 12-bit data serially (LSB first)
 // =============================================================================
-// Improvements over original:
-//   - always_ff for sequential intent
-//   - Removed unused FSM states (enable, comp)
-//   - Fixed 8'h00 → 12'h000 width mismatch
-//   - Reset handles initialization (not declaration)
-// =============================================================================
 
 module spi_master (
   input  logic        clk,
