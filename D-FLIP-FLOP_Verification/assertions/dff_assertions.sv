@@ -1,9 +1,7 @@
 // =============================================================================
 // DFF Assertions: SVA properties to verify D flip-flop behavior
 // =============================================================================
-// These assertions run continuously during simulation and flag violations
-// at the exact cycle they occur — no waiting for the scoreboard.
-// =============================================================================
+
 
 module dff_assertions (
   input logic clk,
