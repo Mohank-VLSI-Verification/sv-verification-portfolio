@@ -1,12 +1,7 @@
 // =============================================================================
 // FIFO — 16-deep, 8-bit wide, synchronous reset
 // =============================================================================
-// Improvements over original:
-//   - always_ff for sequential intent
-//   - Handles simultaneous read+write
-//   - modport added to interface
-//   - Reset handles initialization (not declaration)
-// =============================================================================
+
 
 interface fifo_if;
 
