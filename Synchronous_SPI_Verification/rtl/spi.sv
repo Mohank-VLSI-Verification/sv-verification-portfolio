@@ -14,12 +14,11 @@ module spi_master (
 
   typedef enum logic [1:0] {IDLE = 2'b00, SEND = 2'b01} state_t;
   state_t state;
-
   int countc;
   int count;
   logic [11:0] temp;
 
-  // sclk generation: clk divided by 22 (count to 10, toggle)
+  // sclk generation: clk divided by 22
   always_ff @(posedge clk) begin
     if (rst) begin
       countc <= 0;
@@ -34,7 +33,7 @@ module spi_master (
     end
   end
 
-  // FSM: send 12 bits on mosi, LSB first
+  // FSM: send 12 bits on mosi, MSB first
   always_ff @(posedge sclk) begin
     if (rst) begin
       cs    <= 1'b1;
@@ -54,10 +53,9 @@ module spi_master (
             temp  <= 12'h000;
           end
         end
-
         SEND: begin
           if (count <= 11) begin
-            mosi  <= temp[count];
+            mosi  <= temp[11 - count];   // MSB first
             count <= count + 1;
           end else begin
             count <= 0;
@@ -66,18 +64,15 @@ module spi_master (
             mosi  <= 1'b0;
           end
         end
-
         default: state <= IDLE;
       endcase
     end
   end
-
 endmodule
 
 // =============================================================================
-// SPI Slave — detects cs low, shifts in 12 bits from mosi, asserts done
+// SPI Slave — MSB-first receive
 // =============================================================================
-
 module spi_slave (
   input  logic        sclk,
   input  logic        cs,
@@ -88,7 +83,6 @@ module spi_slave (
 
   typedef enum logic {DETECT_START = 1'b0, READ_DATA = 1'b1} state_t;
   state_t state;
-
   logic [11:0] temp;
   int count;
 
@@ -101,11 +95,10 @@ module spi_slave (
         else
           state <= DETECT_START;
       end
-
       READ_DATA: begin
         if (count <= 11) begin
           count <= count + 1;
-          temp  <= {mosi, temp[11:1]};
+          temp  <= {temp[10:0], mosi};   // shift left, new bit into LSB
         end else begin
           count <= 0;
           done  <= 1'b1;
@@ -116,7 +109,6 @@ module spi_slave (
   end
 
   assign dout = temp;
-
 endmodule
 
 // =============================================================================
