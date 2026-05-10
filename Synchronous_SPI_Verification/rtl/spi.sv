@@ -1,5 +1,5 @@
 // =============================================================================
-// SPI Master — generates sclk, sends 12-bit data serially (LSB first)
+// SPI Master — generates sclk, sends 12-bit data serially (MSB first)
 // =============================================================================
 
 module spi_master (
