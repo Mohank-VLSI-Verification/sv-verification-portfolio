@@ -15,7 +15,7 @@
 
 ## Bug Details
 
-### Bug #4: Width mismatch in master
+### Bug #1: Width mismatch in master
 
 **Location:** `spi_master.sv` — IDLE state
 **Original:** `temp <= 8'h00;`
@@ -24,7 +24,7 @@
 
 ---
 
-### Bug #3: Unused FSM states
+### Bug #2: Unused FSM states
 
 **Location:** `spi_master.sv`
 **Original:** `typedef enum bit [1:0] {idle = 2'b00, enable = 2'b01, send = 2'b10, comp = 2'b11}`
@@ -33,7 +33,7 @@
 
 ---
 
-### Bug #5: Declaration initialization
+### Bug #3: Declaration initialization
 
 **Location:** `spi_master.sv`, `spi_slave.sv`
 **Original:** `state_type state = idle;`, `reg [11:0] temp = 12'h000;`

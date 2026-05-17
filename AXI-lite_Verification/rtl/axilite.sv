@@ -1,39 +1,37 @@
 // =============================================================================
 // AXI4-Lite Slave — 128x32-bit memory with read/write channels
 // =============================================================================
-// Improvements: always_ff, fixed blocking assignment, reset handles init,
-//               modport on interface
-// =============================================================================
+
 
 module axilite_s (
-  input  wire         s_axi_aclk,
-  input  wire         s_axi_aresetn,
+  input  logic         s_axi_aclk,
+  input  logic         s_axi_aresetn,
 
   // Write address channel
-  input  wire         s_axi_awvalid,
-  output reg          s_axi_awready,
-  input  wire [31:0]  s_axi_awaddr,
+  input  logic         s_axi_awvalid,
+  output logic          s_axi_awready,
+  input  logic [31:0]  s_axi_awaddr,
 
   // Write data channel
-  input  wire         s_axi_wvalid,
-  output reg          s_axi_wready,
-  input  wire [31:0]  s_axi_wdata,
+  input  logic         s_axi_wvalid,
+  output logic          s_axi_wready,
+  input  logic [31:0]  s_axi_wdata,
 
   // Write response channel
-  output reg          s_axi_bvalid,
-  input  wire         s_axi_bready,
-  output reg  [1:0]   s_axi_bresp,
+  output logic          s_axi_bvalid,
+  input  logic         s_axi_bready,
+  output logic  [1:0]   s_axi_bresp,
 
   // Read address channel
-  input  wire         s_axi_arvalid,
-  output reg          s_axi_arready,
-  input  wire [31:0]  s_axi_araddr,
+  input  logic         s_axi_arvalid,
+  output logic          s_axi_arready,
+  input  logic [31:0]  s_axi_araddr,
 
   // Read data channel
-  output reg          s_axi_rvalid,
-  input  wire         s_axi_rready,
-  output reg  [31:0]  s_axi_rdata,
-  output reg  [1:0]   s_axi_rresp
+  output logic          s_axi_rvalid,
+  input  logic         s_axi_rready,
+  output logic  [31:0]  s_axi_rdata,
+  output logic  [1:0]   s_axi_rresp
 );
 
   localparam IDLE           = 0,

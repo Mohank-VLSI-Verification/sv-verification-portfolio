@@ -1,9 +1,7 @@
 // =============================================================================
 // D Flip-Flop with Synchronous Reset
 // =============================================================================
-// Captures din on the rising edge of clk. When rst is asserted (synchronous),
-// dout is forced to 0. Uses interface for signal bundling.
-// =============================================================================
+
 
 interface dff_if;
   logic clk;

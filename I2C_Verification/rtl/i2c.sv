@@ -1,8 +1,7 @@
 // =============================================================================
 // I2C Master — generates SCL, handles start/stop/ACK, reads and writes via SDA
 // =============================================================================
-// Improvements: always_ff, reset handles init, cleaned state names
-// =============================================================================
+
 
 module i2c_master (
   input  logic        clk, rst, newd,

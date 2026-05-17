@@ -22,7 +22,7 @@
 
 ---
 
-### Bug #6: Commented-out code
+### Bug #2: Commented-out code
 
 **Location:** Throughout testbench file
 **Problem:** Multiple commented-out `module tb` blocks from intermediate development stages left in the production code. Clutters the file and confuses readers about which testbench is active.
@@ -30,7 +30,7 @@
 
 ---
 
-### Bug #7: Unused TX FSM state
+### Bug #3: Unused TX FSM state
 
 **Location:** `uarttx` module
 **Original:** `enum bit[1:0] {idle = 2'b00, start = 2'b01, transfer = 2'b10, done = 2'b11}`
