@@ -47,30 +47,13 @@ sv-verification-portfolio/
 │   ├── rtl/                   ← design under test
 │   ├── tb/                    ← testbench components
 │   ├── assertions/            ← SVA properties
-│   ├── docs/                  ← verification plan, coverage, bug log
-│   └── sim/                   ← simulation scripts + waveforms
+│   ├── docs/                  ← verification plan, coverage, bug log 
 ├── 02_fifo_verification/
 ├── 03_spi_verification/
 ├── 04_uart_verification/
 ├── 05_i2c_verification/
 └── 06_axilite_verification/
 ```
-
----
-
-## How to Run
-
-Each project requires only 2 files in Vivado XSIM: `rtl/*.sv` and `tb/tb_top.sv`.
-
-```
-1. Create Vivado project → Add simulation sources (2 files only)
-2. Set 'tb' as top module
-3. Run Behavioral Simulation
-4. Type 'run all' in Tcl Console
-5. Check scoreboard summary in Tcl Console output
-```
-
----
 
 ## Author
 
