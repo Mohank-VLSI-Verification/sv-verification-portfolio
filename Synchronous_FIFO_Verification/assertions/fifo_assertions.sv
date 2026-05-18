@@ -1,8 +1,9 @@
 // =============================================================================
-// FIFO Assertions: SVA properties for FIFO behavior
+// FIFO Assertions
 // =============================================================================
 
-module fifo_assertions (
+
+module fifo_assertions_extra (
   input logic       clk,
   input logic       rst,
   input logic       wr,
@@ -10,87 +11,69 @@ module fifo_assertions (
   input logic       full,
   input logic       empty,
   input logic [7:0] din,
-  input logic [7:0] dout
+  input logic [7:0] dout,
+  input logic [4:0] cnt,     
+  input logic [3:0] wptr,    
+  input logic [3:0] rptr     
 );
 
-  // -------------------------------------------------------------------------
-  // Property 1: No write when full
-  // If FIFO is full and write is asserted, data should NOT be accepted
-  // (pointer and count should not change — checked via full staying high)
-  // -------------------------------------------------------------------------
-  property p_no_write_when_full;
-    @(posedge clk) disable iff (rst)
-      (full && wr && !rd) |=> full;
-  endproperty
+  // A1 — Reset state
+property p_reset_state;
+  @(posedge clk) $rose(rst) |=> (empty && !full && cnt == 0);
+endproperty
+assert property (p_reset_state)
+  else $error("[A1] Reset did not clear FIFO state @ %0t", $time);
 
-  assert property (p_no_write_when_full)
-    else $error("[ASSERT] Write accepted when FIFO was full @ %0t", $time);
+// A2 — Overflow protection
+property p_no_overflow;
+  @(posedge clk) disable iff (rst)
+    (full && wr && !rd) |=> $stable(wptr) && $stable(cnt);
+endproperty
+assert property (p_no_overflow)
+  else $error("[A2] Write accepted when full @ %0t", $time);
 
-  // -------------------------------------------------------------------------
-  // Property 2: No read when empty
-  // If FIFO is empty and read is asserted, empty should remain high
-  // -------------------------------------------------------------------------
-  property p_no_read_when_empty;
-    @(posedge clk) disable iff (rst)
-      (empty && rd && !wr) |=> empty;
-  endproperty
+// A3 — Underflow protection
+property p_no_underflow;
+  @(posedge clk) disable iff (rst)
+    (empty && rd && !wr) |=> $stable(rptr) && $stable(cnt) && $stable(dout);
+endproperty
+assert property (p_no_underflow)
+  else $error("[A3] Read accepted when empty @ %0t", $time);
 
-  assert property (p_no_read_when_empty)
-    else $error("[ASSERT] Read accepted when FIFO was empty @ %0t", $time);
+// A4 — Simultaneous R+W
+property p_simultaneous_rw;
+  @(posedge clk) disable iff (rst)
+    (wr && !full && rd && !empty) |=> 
+      $stable(cnt) && (wptr == $past(wptr) + 1) && (rptr == $past(rptr) + 1);
+endproperty
+assert property (p_simultaneous_rw)
+  else $error("[A4] Simultaneous R/W mishandled @ %0t", $time);
 
-  // -------------------------------------------------------------------------
-  // Property 3: Full and empty are mutually exclusive
-  // FIFO cannot be both full and empty simultaneously
-  // -------------------------------------------------------------------------
-  property p_full_empty_mutex;
-    @(posedge clk)
-      !(full && empty);
-  endproperty
+// A5 — Flag transitions
+property p_empty_clears;
+  @(posedge clk) disable iff (rst)
+    (empty && wr && !full) |=> !empty;
+endproperty
+assert property (p_empty_clears)
+  else $error("[A5a] Empty did not clear after write @ %0t", $time);
 
-  assert property (p_full_empty_mutex)
-    else $error("[ASSERT] FIFO is both full and empty @ %0t", $time);
+property p_full_clears;
+  @(posedge clk) disable iff (rst)
+    (full && rd && !wr) |=> !full;
+endproperty
+assert property (p_full_clears)
+  else $error("[A5b] Full did not clear after read @ %0t", $time);
 
-  // -------------------------------------------------------------------------
-  // Property 4: After reset, FIFO must be empty and not full
-  // -------------------------------------------------------------------------
-  property p_reset_state;
-    @(posedge clk)
-      rst |=> (empty && !full);
-  endproperty
+// A6 — Flag consistency
+property p_full_empty_mutex;
+  @(posedge clk) disable iff (rst) !(full && empty);
+endproperty
+assert property (p_full_empty_mutex)
+  else $error("[A6a] FIFO is both full and empty @ %0t", $time);
 
-  assert property (p_reset_state)
-    else $error("[ASSERT] FIFO not empty after reset @ %0t", $time);
-
-  // -------------------------------------------------------------------------
-  // Property 5: Empty deasserts after a successful write
-  // -------------------------------------------------------------------------
-  property p_empty_clears_on_write;
-    @(posedge clk) disable iff (rst)
-      (empty && wr) |=> !empty;
-  endproperty
-
-  assert property (p_empty_clears_on_write)
-    else $error("[ASSERT] FIFO still empty after write @ %0t", $time);
-
-  // -------------------------------------------------------------------------
-  // Property 6: Full deasserts after a successful read
-  // -------------------------------------------------------------------------
-  property p_full_clears_on_read;
-    @(posedge clk) disable iff (rst)
-      (full && rd && !wr) |=> !full;
-  endproperty
-
-  assert property (p_full_clears_on_read)
-    else $error("[ASSERT] FIFO still full after read @ %0t", $time);
-
-  // -------------------------------------------------------------------------
-  // Coverage: Track assertion pass/fail
-  // -------------------------------------------------------------------------
-  cover property (p_no_write_when_full);
-  cover property (p_no_read_when_empty);
-  cover property (p_full_empty_mutex);
-  cover property (p_reset_state);
-  cover property (p_empty_clears_on_write);
-  cover property (p_full_clears_on_read);
-
-endmodule
+property p_flag_cnt_consistency;
+  @(posedge clk) disable iff (rst)
+    (empty == (cnt == 0)) && (full == (cnt == 16));
+endproperty
+assert property (p_flag_cnt_consistency)
+  else $error("[A6b] Flag/count mismatch @ %0t", $time);

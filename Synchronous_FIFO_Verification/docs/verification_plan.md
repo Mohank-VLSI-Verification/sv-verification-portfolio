@@ -57,14 +57,85 @@ Prove the FIFO correctly:
 
 ## 5. Assertions
 
-| ID | Property | Type |
-|----|----------|------|
-| A1 | No data accepted on write when full | Concurrent |
-| A2 | No data output on read when empty | Concurrent |
-| A3 | Full and empty are mutually exclusive | Concurrent |
-| A4 | After reset: empty=1, full=0 | Concurrent |
-| A5 | Empty clears after successful write | Concurrent |
-| A6 | Full clears after successful read | Concurrent |
+| ID | Property | Type | What it catches |
+|----|----------|------|-----------------|
+| A1 | After reset: empty=1, full=0, cnt=0 | Concurrent | Incomplete reset (e.g., pointer reset but cnt not reset) |
+| A2 | No write accepted when full — pointer and count unchanged | Concurrent | Overflow / memory corruption |
+| A3 | No read accepted when empty — pointer, count, dout unchanged | Concurrent | Underflow / spurious data output |
+| A4 | Simultaneous R+W: cnt stable, both pointers advance | Concurrent | Simultaneous-op handling bugs |
+| A5 | Empty clears after successful write; full clears after successful read | Concurrent | Flag-transition bugs |
+| A6 | Full and empty are mutually exclusive (and consistent with cnt) | Concurrent | Flag/count desync, illegal state |
+
+### Assertion Implementations
+
+```systemverilog
+// A1 — Reset state
+property p_reset_state;
+  @(posedge clk) $rose(rst) |=> (empty && !full && cnt == 0);
+endproperty
+assert property (p_reset_state)
+  else $error("[A1] Reset did not clear FIFO state @ %0t", $time);
+
+// A2 — Overflow protection (strengthened with internal state)
+property p_no_overflow;
+  @(posedge clk) disable iff (rst)
+    (full && wr && !rd) |=> $stable(wptr) && $stable(cnt);
+endproperty
+assert property (p_no_overflow)
+  else $error("[A2] Write accepted when full @ %0t", $time);
+
+// A3 — Underflow protection
+property p_no_underflow;
+  @(posedge clk) disable iff (rst)
+    (empty && rd && !wr) |=> $stable(rptr) && $stable(cnt) && $stable(dout);
+endproperty
+assert property (p_no_underflow)
+  else $error("[A3] Read accepted when empty @ %0t", $time);
+
+// A4 — Simultaneous R+W
+property p_simultaneous_rw;
+  @(posedge clk) disable iff (rst)
+    (wr && !full && rd && !empty) |=> 
+      $stable(cnt) && (wptr == $past(wptr) + 1) && (rptr == $past(rptr) + 1);
+endproperty
+assert property (p_simultaneous_rw)
+  else $error("[A4] Simultaneous R/W mishandled @ %0t", $time);
+
+// A5 — Flag transitions
+property p_empty_clears;
+  @(posedge clk) disable iff (rst)
+    (empty && wr && !full) |=> !empty;
+endproperty
+assert property (p_empty_clears)
+  else $error("[A5a] Empty did not clear after write @ %0t", $time);
+
+property p_full_clears;
+  @(posedge clk) disable iff (rst)
+    (full && rd && !wr) |=> !full;
+endproperty
+assert property (p_full_clears)
+  else $error("[A5b] Full did not clear after read @ %0t", $time);
+
+// A6 — Flag consistency
+property p_full_empty_mutex;
+  @(posedge clk) disable iff (rst) !(full && empty);
+endproperty
+assert property (p_full_empty_mutex)
+  else $error("[A6a] FIFO is both full and empty @ %0t", $time);
+
+property p_flag_cnt_consistency;
+  @(posedge clk) disable iff (rst)
+    (empty == (cnt == 0)) && (full == (cnt == 16));
+endproperty
+assert property (p_flag_cnt_consistency)
+  else $error("[A6b] Flag/count mismatch @ %0t", $time);
+```
+
+**Note on binding:** A1, A2, A3, A4, A6 reference internal signals (`cnt`, `wptr`, `rptr`). Use `bind` to attach the assertion module inside the DUT scope without modifying the RTL:
+
+```systemverilog
+bind FIFO fifo_assertions u_asserts (.*);
+```
 
 ## 6. Testbench Architecture
 
@@ -73,12 +144,13 @@ Class-based layered testbench with golden model:
 - **Generator** — constrained random (50/50 read/write distribution)
 - **Driver** — drives write data from transaction (not self-generated)
 - **Monitor** — captures all FIFO signals passively
-- **Scoreboard** — uses SystemVerilog queue as golden FIFO model
+- **Scoreboard** — uses SystemVerilog queue as golden FIFO model (proves FIFO ordering — the one property SVA cannot fully express)
 - **Environment** — wires components, runs test phases with timeout
 
 ## 7. Pass Criteria
 
-- 0 assertion failures
-- 0 scoreboard data mismatches
+- 0 assertion failures (A1–A6)
+- 0 scoreboard data mismatches (proves data integrity and ordering)
 - 100% functional coverage on all coverpoints
+- All 13 test scenarios executed
 - Simulation completes without timeout
