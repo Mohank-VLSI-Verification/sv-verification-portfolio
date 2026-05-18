@@ -1,8 +1,7 @@
 // =============================================================================
 // UART Transmitter — generates baud clock, sends start + 8 data bits (LSB first)
 // =============================================================================
-// Improvements: always_ff, reset handles init, cleaned up FSM
-// =============================================================================
+
 
 module uarttx
 #(
