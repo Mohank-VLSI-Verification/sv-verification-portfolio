@@ -68,35 +68,7 @@ The original testbench (from course material) was functional but had several lim
 3. **Added SVA assertions** — concurrent properties check DFF behavior at the cycle level, catching bugs immediately
 4. **Added functional coverage** — covergroups verify all input combinations and cross-coverage scenarios were exercised
 5. **Removed forced `din=0`** — original driver forced idle between transactions, hiding potential back-to-back bugs
-6. **Added timeout mechanism** — prevents simulation from hanging indefinitely on synchronization deadlocks
-7. **Used `always_ff`** — replaced `always @(posedge clk)` with `always_ff` for explicit sequential intent
-
----
-
-## File Structure
-
-```
-01_dff_verification/
-├── README.md                  ← this file
-├── rtl/
-│   └── dff.sv                 ← DUT: D flip-flop with synchronous reset
-├── tb/
-│   ├── transaction.sv         ← data packet (rand din, observed dout)
-│   ├── generator.sv           ← creates random stimulus
-│   ├── driver.sv              ← drives DUT inputs via virtual interface
-│   ├── monitor.sv             ← captures DUT outputs passively
-│   ├── scoreboard.sv          ← compares actual vs expected
-│   ├── environment.sv         ← wires all components together
-│   └── tb_top.sv              ← top-level: clock, DUT, environment
-├── assertions/
-│   └── dff_assertions.sv      ← SVA properties for DFF behavior
-├── docs/
-│   ├── verification_plan.md   ← test scenarios and strategy
-│   ├── coverage_report.md     ← functional coverage results
-│   └── bug_log.md             ← bugs found during verification
-└── sim/
-    └── run.do                 ← simulation commands
-```
+6. **Used `always_ff`** — replaced `always @(posedge clk)` with `always_ff` for explicit sequential intent
 
 ---
 
@@ -104,7 +76,7 @@ The original testbench (from course material) was functional but had several lim
 
 - **Transactions:** 30 randomized stimulus applied
 - **Pass rate:** 100% (all scoreboard comparisons matched)
-- **Functional coverage:** TODO — update after simulation
+- **Functional coverage:** 100%
 - **Assertions:** 0 failures across all cycles
 
 ---
