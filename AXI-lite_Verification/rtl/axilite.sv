@@ -34,17 +34,17 @@ module axilite_s (
 );
 
   // ---------------------------------------------------------------------------
-  // FSM state encoding
+  // FSM state encoding — named by channel or action, no misleading "ACK"
   // ---------------------------------------------------------------------------
   typedef enum logic [2:0] {
-    IDLE           = 3'd0,
-    SEND_WADDR_ACK = 3'd1,
-    SEND_WDATA_ACK = 3'd2,
-    SEND_WR_RESP   = 3'd3,
-    SEND_WR_ERR    = 3'd4,
-    SEND_RADDR_ACK = 3'd5,
-    SEND_RDATA     = 3'd6,
-    SEND_RD_ERR    = 3'd7
+    IDLE      = 3'd0,   // Wait for AW or AR
+    WAIT_W    = 3'd1,   // AW handshake done, waiting for W
+    WRITE_MEM = 3'd2,   // W handshake done, validate + write memory
+    B_OKAY    = 3'd3,   // Drive B channel with OKAY
+    B_DECERR  = 3'd4,   // Drive B channel with DECERR
+    READ_MEM  = 3'd5,   // AR handshake done, validate + read memory
+    R_OKAY    = 3'd6,   // Drive R channel with OKAY
+    R_DECERR  = 3'd7    // Drive R channel with DECERR
   } state_t;
 
   state_t state;
@@ -96,41 +96,41 @@ module axilite_s (
           if (s_axi_awvalid) begin
             waddr         <= s_axi_awaddr;
             s_axi_awready <= 1'b1;
-            state         <= SEND_WADDR_ACK;
+            state         <= WAIT_W;
           end else if (s_axi_arvalid) begin
             raddr         <= s_axi_araddr;
             s_axi_arready <= 1'b1;
-            state         <= SEND_RADDR_ACK;
+            state         <= READ_MEM;
           end
         end
 
         // -------------------------------------------------------------------
-        SEND_WADDR_ACK: begin
+        WAIT_W: begin
           s_axi_awready <= 1'b0;
           if (s_axi_wvalid) begin
             wdata        <= s_axi_wdata;
             s_axi_wready <= 1'b1;
-            state        <= SEND_WDATA_ACK;
+            state        <= WRITE_MEM;
           end
         end
 
         // -------------------------------------------------------------------
-        SEND_WDATA_ACK: begin
+        WRITE_MEM: begin
           s_axi_wready <= 1'b0;
           if (waddr_valid) begin
             mem[waddr_idx] <= wdata;
             s_axi_bresp    <= 2'b00;       // OKAY
             s_axi_bvalid   <= 1'b1;
-            state          <= SEND_WR_RESP;
+            state          <= B_OKAY;
           end else begin
             s_axi_bresp    <= 2'b11;       // DECERR
             s_axi_bvalid   <= 1'b1;
-            state          <= SEND_WR_ERR;
+            state          <= B_DECERR;
           end
         end
 
         // -------------------------------------------------------------------
-        SEND_WR_RESP, SEND_WR_ERR: begin
+        B_OKAY, B_DECERR: begin
           if (s_axi_bready) begin
             s_axi_bvalid <= 1'b0;
             s_axi_bresp  <= 2'b00;
@@ -139,23 +139,23 @@ module axilite_s (
         end
 
         // -------------------------------------------------------------------
-        SEND_RADDR_ACK: begin
+        READ_MEM: begin
           s_axi_arready <= 1'b0;
           if (raddr_valid) begin
             s_axi_rdata  <= mem[raddr_idx];
             s_axi_rresp  <= 2'b00;         // OKAY
             s_axi_rvalid <= 1'b1;
-            state        <= SEND_RDATA;
+            state        <= R_OKAY;
           end else begin
             s_axi_rdata  <= 32'd0;
             s_axi_rresp  <= 2'b11;         // DECERR
             s_axi_rvalid <= 1'b1;
-            state        <= SEND_RD_ERR;
+            state        <= R_DECERR;
           end
         end
 
         // -------------------------------------------------------------------
-        SEND_RDATA, SEND_RD_ERR: begin
+        R_OKAY, R_DECERR: begin
           if (s_axi_rready) begin
             s_axi_rvalid <= 1'b0;
             s_axi_rresp  <= 2'b00;
@@ -185,7 +185,7 @@ interface axi_if;
   logic        bready, bvalid;
   logic        rvalid, rready;
   logic [31:0] awaddr, araddr, wdata, rdata;
-  logic [1:0]  bresp, rresp;        // fixed: was 'wresp', now matches DUT
+  logic [1:0]  bresp, rresp;
 
   modport DUT (
     input  clk, resetn,
