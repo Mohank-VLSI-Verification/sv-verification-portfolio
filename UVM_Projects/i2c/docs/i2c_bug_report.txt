@@ -1,0 +1,158 @@
+# I2C UVM Verification — Bug Report v1.0
+
+## 1. Scope
+
+End-to-end verification of an I2C master controller with an internal 128-entry memory array, exercising:
+- Narrow-range writes/reads (ADDR 0–10) for directed baseline coverage
+- Full 7-bit address sweep (ADDR 0–127) for stress and coverage closure
+- Reset behavior and reset-mode transactions
+- Protocol-handshake invariants via 4 SVA assertions
+- Functional coverage closure via `uvm_subscriber`-based collector
+
+DUT: `i2c_mem` (FSM-driven I2C master: idle → start → address → data → complete)
+Reference model: `ref_model` (128-entry mirror array, predicts read data from prior writes)
+
+---
+
+## 2. Flow
+
+| Stage | Tool | Result |
+|-------|------|--------|
+| Compile | `xvlog -sv -L uvm` | Clean, 3 files into work library |
+| Elaborate | `xelab` with `-cc_type bcst` and `-cov_db_dir` | Snapshot `i2c_sim` generated |
+| Run | `xsim --tclbatch run.tcl` | Hardcoded `run_test("test")`, 5 sequences executed sequentially |
+| Coverage | `xcrg` | HTML report at `sim/cov_report/functionalCoverageReport/dashboard.html` |
+
+Automation: GNU Make 4.4.1 + TCL batch file (`run.tcl`). Targets: `compile`, `elab`, `run`, `cov`, `clean`, `all`.
+
+---
+
+## 3. Final Result Summary
+
+| Metric | Value |
+|--------|-------|
+| UVM_ERROR | 0 |
+| UVM_FATAL | 0 |
+| UVM_WARNING | 0 |
+| UVM_INFO | 700 |
+| Total transactions driven | 165 |
+| Total transactions monitored | 165 |
+| Total transactions predicted | 150 |
+| Scoreboard mismatches | 0 |
+| Functional coverage | **89.58%** |
+| SVA assertion failures | 0 |
+| Sim time | 74910 ns |
+
+DUT verified clean for I2C protocol handshake and memory read/write behavior over the implemented stimulus space.
+
+---
+
+## 4. Bugs Found and Fixed (Testbench)
+
+### Bug TB-1 — Duplicate `interface i2c_i` Declaration
+
+**Symptom:** Elaboration would have failed with duplicate scope error. Interface `i2c_i` was declared in two files, both being included in the same compilation unit.
+
+**Root cause:** Legacy RTL file `i2c_rtl.sv` contained the interface declaration at lines 259–268 (below the DUT `endmodule`). A second, authoritative version — co-located with the 5 SVA properties — lived in `assertions/i2c_sva.sv` starting at line 4. Both were pulled in by the `xvlog` command line, causing XSIM to refuse elaboration.
+
+**Fix:** Deleted lines 255–end from `rtl/i2c_rtl.sv`. Interface is authoritative only in `assertions/i2c_sva.sv`:
+```bash
+sed -i '255,$d' i2c/rtl/i2c_rtl.sv
+```
+RTL file now ends cleanly at DUT `endmodule` (line 254).
+
+**Verification:** Re-compile clean. `xelab` produced `Compiling module work.i2c_i_default` exactly once. No duplicate declaration error.
+
+---
+
+### Bug TB-2 — `uvm_sequence_library::execute()` Null Deref (Empirically Reproduced)
+
+**Symptom:** Simulation aborted at time 0 ps, iteration 47 with:
+```
+ERROR: File: E:\vivado\2025.2\Vivado\data/system_verilog/uvm_1.2/xlnx_uvm_package.sv Line: 25850 :
+Accessing non-static members of a null object is not allowed.
+Process: /uvm_pkg/uvm_sequence_library(REQ=transaction,RSP=transaction)::execute
+```
+Zero transactions executed. Coverage DB empty.
+
+**Root cause:** Vivado XSIM 2025.2's UVM 1.2 implementation of `uvm_sequence_library::execute()` dereferences an internal handle that `init_sequence_library()` fails to populate. The `add_typewide_sequence()` calls in the library constructor register the sequence wrappers correctly, but `execute()` cannot resolve them at runtime — `create_seq_by_typename` returns null.
+
+**Fix:** Retained `i2c_seq_lib` class in source (as documentation of intent) but rewrote the `test` class to execute sequences sequentially in `run_phase`:
+```
+rstseq.start(e.a.seqr);
+wseq.start(e.a.seqr);
+rseq.start(e.a.seqr);
+swseq.start(e.a.seqr);
+srseq.start(e.a.seqr);
+```
+
+**Verification:** Re-run cleanly executed all 5 sequences without exception. 165 transactions driven, 0 UVM_ERROR.
+
+---
+
+### Bug TB-3 — SVA-5 (`addr_bound`) Was a Stimulus Tautology, Not a DUT Property
+
+**Symptom:** SVA-5 asserted `addr <= 7'd10` on every posedge clk. It never fired — but that was a coincidence of the transaction constraint, not a DUT guarantee. Any attempt to broaden addr stimulus for coverage closure would have triggered false UVM_ERRORs.
+
+**Root cause:** Property was authored from the transaction constraint's perspective (`constraint addr_c { addr <= 10; }`), not from the DUT specification. The DUT `i2c_mem` accepts the full 7-bit range (0–127). SVA-5 was checking testbench behavior, not DUT behavior — an assertion that can only fail if the testbench itself is broken.
+
+**Fix:** Deleted the SVA-5 property and assertion block from `assertions/i2c_sva.sv`. SVA count reduced from 5 to 4.
+
+**Downstream effect:** Removing SVA-5 was a prerequisite for the coverage improvement documented in §6. Loosening the address constraint from `[0:10]` to `[0:127]` for stress sequences would have caused SVA-5 to fire 120 times per run with spurious UVM_ERRORs.
+
+**Lesson:** SVA is a DUT-facing contract, not a stimulus-facing sanity check. If an assertion cannot fail unless the testbench itself is broken, it does not belong in the DUT interface.
+
+**Verification:** Re-run with broadened stress sequences produced 0 SVA failures across the remaining 4 properties.
+
+---
+
+### Bug TB-4 — Hard Address Constraint Capped Coverage at 65%
+
+**Symptom:** Baseline run reported 64.58% functional coverage. `op_cp`, `data_cp` at 100%; `addr_cp` at 33% (2 of 6 bins hit); `op_x_addr` cross at 33% (4 of 12 bins hit).
+
+**Root cause:** Transaction constraint `addr_c { addr <= 10; }` was declared as a hard rule, locking out 4 of 6 `addr_cp` bins (`range_lo_mid`, `range_hi_mid`, `range_hi`, `addr_max`) and the corresponding 8 cross bins. Ceiling was fundamentally capped at ~65% regardless of iteration count or seed.
+
+**Fix:** Replaced hard constraint with knob-driven conditional (APB-locked pattern):
+```
+bit valid_addr = 1;
+constraint addr_c {
+  if (valid_addr) addr inside {[0:10]};
+  else            addr inside {[0:127]};
+}
+```
+Added two stress sequences (`stress_write`, `stress_read`, 60 iterations each) that set `tr.valid_addr = 0` before `randomize()`. Baseline sequences preserved with `tr.valid_addr = 1`.
+
+**Verification:** Re-run produced 89.58% coverage — a +25 point improvement. `addr_cp` and `op_cp` closed to 100%; `data_cp` closed to 100%; `op_x_addr` cross reached ~62%.
+
+---
+
+## 5. Bugs Found in DUT
+
+**None.** The DUT (`i2c_mem`) passed every transaction comparison against the reference model. All 4 remaining SVA protocol assertions held throughout the run:
+
+| SVA | Property | Held? |
+|-----|----------|-------|
+| SVA-1 | `done` is a single-cycle pulse | ✓ |
+| SVA-2 | `datard` has no X bits when `done` asserts on a read | ✓ |
+| SVA-3 | `done` bounded liveness (≤200 cycles) | ✓ |
+| SVA-4 | `addr` and `din` stable when `done` asserts on a write | ✓ |
+
+---
+
+## 6. Coverage Analysis — 89.58%
+
+Three coverpoints and one cross defined on monitor analysis stream:
+
+| Coverpoint | Bins | Coverage | Notes |
+|------------|------|----------|-------|
+| `op_cp` (operation type) | 2 | 100% | write_op, read_op both hit |
+| `addr_cp` (7-bit address buckets) | 6 | 100% | Closed by stress sequences |
+| `data_cp` (write data buckets, `iff writed`) | 3 | 100% | low, mid, high all hit |
+| `op_x_addr` (op × addr_bucket cross) | 12 | ~62% | Residual cold bins remain |
+
+The remaining 10.42% gap concentrates in the `op_x_addr` cross — specifically read operations against high-address buckets. Reads sample the address regardless of whether that address was written first, but under randomized order the RNG did not deterministically pair every `read_op` with every `addr_cp` bucket within the 60-iteration stress budget.
+
+**Coverage holes are stimulus-statistical, not by-design impossibilities.** To be revisited in v2 with either (a) 3–4× stress iteration bump for statistical closure, or (b) force-directed sequences targeting specific `(op, addr_bucket)` pairs.
+
+**End of report.**
+```

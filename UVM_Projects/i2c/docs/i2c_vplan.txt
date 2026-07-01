@@ -1,0 +1,25 @@
+ID     | Feature                                                            | Test/Sequence                                | Coverage point                              | Assertion
+-------|--------------------------------------------------------------------|----------------------------------------------|---------------------------------------------|------------------------------------------------
+F1     | Reset clears both FSMs to idle and clears all DUT outputs          | Reset sequence                               | Cover reset assertion                       | Reset forces both FSMs to idle next cycle
+F2     | Reset clears all 128 memory entries to zero                        | Reset then read-back from random addresses   | Cover post-reset read returning 0           | —
+F3     | Write transaction stores din into mem at 7-bit addr                | Random write seq across address space        | Write op × address sub-ranges               | —
+F4     | Write transaction asserts done on completion                       | Random write seq                             | Cover done=1 on write path                  | —
+F5     | Read transaction returns mem content via datard for given addr     | Read seq after writes to same address        | Read op × address sub-ranges                | —
+F6     | Read transaction asserts done on completion                        | Random read seq                              | Cover done=1 on read path                   | —
+F7     | Memory persists across transactions until reset                    | Write addr → unrelated traffic → read addr   | Memory persistence cross                    | —
+F8     | Boundary cases exercised (addr = 0, 127)                           | Directed seq hitting addr=0 and addr=127     | Boundary bins (0, 127) hit                  | —
+F9     | Back-to-back transactions handled correctly                        | Sequential transactions without idle gap     | Cover B2B transaction transitions           | —
+F10    | done deasserts in cycle following completion                       | Any baseline traffic                         | Cover done falling edge                     | —
+INV1   | done is a single-cycle pulse                                       | Any baseline traffic                         | —                                           | done high implies done low next cycle
+INV2   | datard valid (no X) when done=1 on read                            | Read seq across address space                | —                                           | done && !wr implies !$isunknown(datard)
+INV3   | Reset clears done and forces FSM to idle                           | Reset sequence                               | —                                           | rst high implies done=0 and FSM=idle
+INV4   | done eventually asserts after stable inputs (forward progress)     | Any traffic with bounded wait timing         | —                                           | wr+addr+din stable implies done within N cy
+INV5   | Write then read same addr returns written value                    | Paired write→read to same addr               | —                                           | Read after write returns previously written data
+OOS1   | Real I2C bus protocol (SDA/SCL serial signaling) at port level     | —                                            | —                                           | —
+OOS2   | START/STOP condition framing per I2C spec                          | —                                            | —                                           | —
+OOS3   | Clock stretching, multi-master arbitration, repeated START         | —                                            | —                                           | —
+OOS4   | 10-bit addressing and General Call addressing                      | —                                            | —                                           | —
+OOS5   | NACK handling and bus timing parameters (tHIGH, tSU:DAT, etc.)     | —                                            | —                                           | —
+OBS1   | LSB-first byte transmission (spec is MSB-first) — internal only    | —                                            | —                                           | —
+OBS2   | read_data count<=9 — likely off-by-2 bug, may corrupt read data    | Read seq across address space                | datard mismatch on reads                    | INV2 may flag this
+OBS3   | Cross-FSM coupling — slave reads master state directly             | —                                            | —                                           | —
