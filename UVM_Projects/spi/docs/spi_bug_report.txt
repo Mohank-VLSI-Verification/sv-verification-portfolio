@@ -1,0 +1,133 @@
+# SPI UVM Verification — Bug Report v1.0
+
+## 1. Scope
+
+End-to-end verification of an SPI slave with an internal memory array, exercising:
+- Directed writes (`write_data`, 15 iterations)
+- Directed reads (`read_data`, 15 iterations)
+- Combined write-then-read stress (`writeb_readb`, 10+10 iterations)
+- Reset behavior (`reset_dut`, 15 iterations)
+- Protocol handshake invariants via 5 SVA assertions
+- Functional coverage closure via `uvm_subscriber`-based collector, connected inside the agent
+
+DUT: `spi_mem` (SPI slave with FSM decoding write vs read via first miso bit, 8-bit addr + 8-bit data, memory-backed read response on mosi)
+Reference model: `ref_model` (32-entry mirror array, predicts read data from prior writes)
+
+---
+
+## 2. Flow
+
+| Stage | Tool | Result |
+|-------|------|--------|
+| Compile | `xvlog --sv -L uvm` | Clean, 3 files into work library |
+| Elaborate | `xelab` with `-cov_db_dir cov_db -cov_db_name spi_cov` | Snapshot `spi_sim` generated |
+| Run | `xsim --tclbatch run.tcl` | Hardcoded `run_test("test")`, 4 sequences executed sequentially |
+| Coverage | `xcrg` | HTML report at `sim/cov_report/functionalCoverageReport/dashboard.html` |
+
+Automation: GNU Make 4.4.1 + TCL batch file (`run.tcl`). Targets: `compile`, `elab`, `sim`, `cov`, `clean`, `all`.
+
+---
+
+## 3. Final Result Summary
+
+| Metric | Value |
+|--------|-------|
+| UVM_ERROR | 0 |
+| UVM_FATAL | 0 |
+| UVM_WARNING | 0 |
+| UVM_INFO | 250 |
+| Total transactions driven | 65 (50 data + 15 reset) |
+| Total transactions monitored | 65 |
+| Total transactions predicted | 50 (reset branch does not emit `uvm_info`) |
+| Scoreboard PASSED | 50 |
+| Scoreboard FAILED | 0 |
+| Reset transactions logged | 15 |
+| Functional coverage | **95.76%** |
+| SVA assertion failures | 0 |
+| Sim time | 19,810 ns |
+
+DUT verified clean for SPI protocol handshake and memory read/write behavior over the exercised parameter space. Coverage is the highest of the four completed protocols (APB 80.95, UART 82.13, I2C 89.58, SPI 95.76).
+
+---
+
+## 4. Bugs Found and Fixed (Testbench)
+
+### Bug TB-1 — `uvm_sequence_library::execute()` Null Deref (Fourth Confirmation)
+
+**Symptom:** Original test used `spi_seq_lib extends uvm_sequence_library #(transaction)` with 4 typewide-registered sequences and called `seqlib.start(e.a.seqr)`. Same failure mode as APB (TB-3), I2C (TB-2), and UART (TB-1) — Vivado XSIM 2025.2's UVM 1.2 implementation of `uvm_sequence_library::execute()` dereferences an internal handle that `init_sequence_library()` does not populate.
+
+**Root cause:** `add_typewide_sequence()` calls in the library constructor register the sequence wrappers correctly, but `execute()` cannot resolve them at runtime — `create_seq_by_typename` returns null. Independently reproduced on four protocols now.
+
+**Fix:** Retained `spi_seq_lib` class in source (documentation of intent) but rewrote the `test` class to execute all 4 sequences sequentially in `run_phase`:
+```
+rst_seq.start(e.a.seqr);
+wseq.start(e.a.seqr);
+rseq.start(e.a.seqr);
+wr_seq.start(e.a.seqr);
+```
+**Verification:** Clean run — all 4 sequences executed, 65 transactions driven, 0 UVM_ERROR.
+
+---
+
+### Bug TB-2 — `assert(tr.randomize)` Legacy Pattern in All 4 Sequences
+
+**Symptom:** All 4 sequence bodies (5 total call sites including `writeb_readb`'s two loops) used the legacy `assert(tr.randomize);` idiom. If randomization failed (e.g., an unsatisfiable constraint added later), the `assert` would fire a simulation-terminating VLOG assertion error rather than a controlled UVM_ERROR — bypassing the UVM report server, breaking scoreboard drain, and producing no diagnostic breadcrumb.
+
+**Root cause:** Pre-UVM SystemVerilog idiom carried over from OOP-era class-based testbenches. Randomization return value is a boolean, meant to be checked and reported explicitly.
+
+**Fix:** Replaced across all 5 call sites with the UVM-idiomatic guard:
+```
+if (!tr.randomize()) `uvm_error("SEQ", "randomize failed")
+```
+
+**Verification:** Zero randomize failures on this run, but the guard is in place for future constraint additions.
+
+---
+
+### Bug TB-3 — Coverage Subscriber Instantiated in Env, Not Agent
+
+**Symptom:** Original testbench declared `spi_coverage cov;` inside `env` and connected `a.m.send.connect(cov.analysis_export)` in `env::connect_phase`. Same limitation flagged in I2C bug report Known Limitation #2 and UART TB-4.
+
+**Root cause:** Coverage was authored as an env-level concern rather than an agent-internal artifact. Functionally identical, but breaks the "coverage lives with the observing agent" model and forces env to reach into the agent's internal component to wire the analysis port — a layering violation.
+
+**Fix:** Moved `spi_coverage cov;` declaration and instantiation into `agent`. Connection is now agent-local:
+```
+// inside agent::connect_phase
+m.send.connect(cov.analysis_export);
+```
+Env is now purely a container.
+
+**Verification:** Clean run, coverage subscriber active, `report_phase` reports 95.76%.
+
+---
+
+## 5. Bugs Found in DUT
+
+**None.** The DUT (`spi_mem`) passed every transaction comparison against the reference model. All 5 SVA protocol assertions held throughout the run:
+
+| SVA | Property | Held? |
+|-----|----------|-------|
+| SVA-1 | `cs` is high while `rst` is asserted | ✓ |
+| SVA-2 | `op_done` is a single-cycle pulse | ✓ |
+| SVA-3 | `cs` falling edge eventually drives `op_done` (bounded liveness) | ✓ |
+| SVA-4 | `mosi` has no X bits while `ready` is asserted | ✓ |
+| SVA-5 | Reset clears `ready` on the next cycle | ✓ |
+
+Scoreboard: 50/50 data transactions PASSED, 0 FAILED, 0 miscompares. 15 reset transactions logged and skipped from comparison.
+
+---
+
+## 6. Coverage Analysis — 95.76%
+
+Three coverpoints and two crosses defined on monitor analysis stream (reset transactions skipped via `if (t.op == rstdut) return;` guard in `write()`):
+
+| Coverpoint | Bins | Coverage | Notes |
+|------------|------|----------|-------|
+| `op_cp` (operation type) | 2 | 100% | `write_op`, `read_op` both hit |
+| `addr_cp` (8-bit addr, constrained 0..10) | 11 | 100% | `randc` cycles through all 11 legal values |
+| `data_cp` (write data buckets, `iff writed`) | 3 | 100% | low, mid, high all hit |
+| `op_x_addr` (op × addr cross) | 22 | ~90% | 2 ops × 11 addrs; residual cold bins are read-side |
+| `op_x_data` (op × data cross) | 6 | 100% | 2 ops × 3 buckets; `data_cp` auto-masks on reads |
+
+**End of report.**
+```

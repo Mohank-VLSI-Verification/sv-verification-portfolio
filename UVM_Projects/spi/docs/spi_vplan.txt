@@ -1,0 +1,25 @@
+ID     | Feature                                                            | Test/Sequence                                | Coverage point                              | Assertion
+-------|--------------------------------------------------------------------|----------------------------------------------|---------------------------------------------|------------------------------------------------
+F1     | Reset returns FSM to idle and clears mosi, ready, op_done          | Reset sequence                               | Cover reset assertion                       | Reset forces FSM to idle
+F2     | cs=0 falling edge initiates transaction (idle → detect)            | Random seq asserting cs                      | Cover cs falling edge                       | —
+F3     | First bit on miso after cs=0 selects direction (1=write, 0=read)   | Directed seq with miso=1 and miso=0 first    | Direction bit × op cross                    | —
+F4     | Write transaction: 16-bit shift-in stores data at address          | Write seq to random addresses                | Write op × address sub-ranges               | —
+F5     | Write completion asserts op_done                                   | Random write sequence                        | Cover op_done=1 on write path               | —
+F6     | Read transaction: address shift-in, mem fetch, data shift-out      | Read seq to random addresses after writes    | Read op × address sub-ranges                | —
+F7     | ready asserted during read data output (temp_del → send_data)      | Random read sequence                         | Cover ready=1 on read path                  | mosi valid (no X) when ready=1
+F8     | Read completion asserts op_done                                    | Random read sequence                         | Cover op_done=1 on read path                | —
+F9     | Memory persists across transactions                                | Write addr → unrelated traffic → read addr   | Memory persistence cross                    | —
+F10    | Boundary cases exercised (addr = 0, 31)                            | Directed seq hitting addr=0 and 31           | Boundary bins (0, 31) hit                   | —
+INV1   | op_done is a single-cycle pulse                                    | Any baseline traffic                         | —                                           | op_done high implies op_done low next cycle
+INV2   | mosi valid (no X) when ready=1 on read                             | Random read sequences                        | —                                           | ready implies !$isunknown(mosi)
+INV3   | Reset clears op_done, ready, mosi and forces FSM to idle           | Reset sequence                               | —                                           | rst implies all outputs=0, FSM=idle
+INV4   | cs falling edge eventually leads to op_done (forward progress)     | Any traffic with bounded wait timing         | —                                           | $fell(cs) implies op_done within N cycles
+INV5   | Write then read same addr returns written value                    | Paired write→read to same addr               | —                                           | Read after write returns previously written data
+OOS1   | SPI clock (SCLK) — not implemented, DUT samples on system clk      | —                                            | —                                           | —
+OOS2   | SPI modes CPOL/CPHA 0-3 — not applicable without SCLK              | —                                            | —                                           | —
+OOS3   | Full-duplex operation — DUT is half-duplex only                    | —                                            | —                                           | —
+OOS4   | Multi-byte reads/writes, multi-slave, FIFO buffering               | —                                            | —                                           | —
+OOS5   | Real SPI wire interoperability (non-standard framing)              | —                                            | —                                           | —
+OBS1   | MOSI/MISO signal names semantically reversed vs SPI convention     | —                                            | —                                           | —
+OBS2   | LSB-first bit transmission (standard SPI is MSB-first)             | —                                            | —                                           | —
+OBS3   | 8-bit address received but only 5 bits effective (mem depth = 32)  | Write/read seq to addr ≥32                   | Cover upper-3-bits truncation               | —
