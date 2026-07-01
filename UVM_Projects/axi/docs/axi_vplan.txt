@@ -1,0 +1,32 @@
+ID     | Feature                                                            | Test/Sequence                                | Coverage point                              | Assertion
+-------|--------------------------------------------------------------------|----------------------------------------------|---------------------------------------------|------------------------------------------------
+F1     | Reset returns all 5 FSMs to idle and clears output signals         | Reset sequence                               | Cover reset assertion                       | Reset forces all FSMs to idle
+F2     | AW handshake (awvalid/awready) with config captured                | Random write seq covering awid/len/size/burst| AW handshake × config bins                  | —
+F3     | W handshake (wvalid/wready) with wlast on final beat               | Random write seq with multi-beat bursts      | Cover wlast=1 on burst end                  | —
+F4     | WSTRB byte-lane selection — all 16 strobe patterns                 | Random write seq covering all wstrb values   | wstrb bins [0000..1111]                     | —
+F5     | Multi-beat write bursts up to 16 beats (AXI3, 4-bit awlen)         | Write seq covering awlen 0..15               | awlen bins × burst type                     | —
+F6     | FIXED write burst — address stays same across beats                | Write seq with awburst=00, multi-beat        | Cover awburst=FIXED × multi-beat            | —
+F7     | INCR write burst — address increments by size per beat             | Write seq with awburst=01, multi-beat        | Cover awburst=INCR × multi-beat             | —
+F8     | WRAP write burst — boundary-aligned wrap, awlen ∈ {1,3,7,15}       | Write seq with awburst=10, wrap-valid awlens | Cover awburst=WRAP × valid awlen            | —
+F9     | B handshake (bvalid/bready) after write completion                 | Random write seq                             | Cover B handshake                           | —
+F10    | Response encoding: OKAY, SLVERR, DECERR (for B and R channels)     | Write/read seq covering all response cases   | bresp/rresp × cause bins                    | —
+F11    | AR handshake (arvalid/arready) with config captured                | Random read seq covering arid/len/size/burst | AR handshake × config bins                  | —
+F12    | R handshake (rvalid/rready) with rlast on final beat               | Random read seq with multi-beat bursts       | Cover rlast=1 on burst end                  | —
+F13    | Read burst types (FIXED/INCR/WRAP) with multi-beat support         | Read seq covering all burst types + lengths  | arburst × arlen bins                        | —
+F14    | DECERR response on address ≥ 128 (write and read paths)            | Write/read seq to addr ≥ 128                 | Address error range × op                    | —
+F15    | SLVERR response on size > 2'b010 (write and read paths)            | Write/read seq with awsize/arsize > 2        | Size error × op                             | —
+F16    | Memory persists across transactions until reset                    | Write addr → unrelated traffic → read addr   | Memory persistence cross                    | —
+F17    | Boundary cases exercised (addr = 0, 127, 128)                      | Directed seq hitting addr=0, 127, 128        | Boundary bins (0, 127, 128) hit             | —
+INV1   | VALID sticky rule — VALID stays high until READY handshake         | All traffic across 5 channels                | —                                           | vld && !rdy |=> vld until (vld && rdy)
+INV2   | Info stability during VALID — signals stable until READY           | All traffic with random ready timing         | —                                           | Signals stable while vld && !rdy
+INV3   | Response ID matching — BID equals AWID, RID equals ARID            | Random write and read sequences              | —                                           | bvalid |-> bid == matched awid (same for R)
+INV4   | Burst type must be non-reserved — awburst/arburst != 2'b11         | Random write/read with all burst values      | —                                           | awvalid |-> awburst inside {00,01,10}
+INV5   | WRAP burst length must be one of {1, 3, 7, 15}                     | Write/read seq with awburst/arburst=WRAP     | —                                           | awburst==WRAP |-> awlen inside {1,3,7,15}
+OOS1   | AXI4 8-bit AWLEN (256-beat bursts), QoS, REGION signals            | —                                            | —                                           | —
+OOS2   | AWCACHE, AWPROT, AWLOCK, AWQOS and AR equivalents                  | —                                            | —                                           | —
+OOS3   | USER sideband signals, EXOKAY response, exclusive access           | —                                            | —                                           | —
+OOS4   | Outstanding/reordered transactions, interleaved writes, multi-ID   | —                                            | —                                           | —
+OOS5   | Sparse WSTRB patterns, sizes > 4B, real interconnect interaction   | —                                            | —                                           | —
+OBS1   | rvalid dropped in rwait state — AXI VALID-sticky violation         | Read seq with rready delay                   | R-channel handshake mismatch                | INV1 will flag this
+OBS2   | Latch inference in always_comb — awready/first/len_count           | —                                            | —                                           | —
+OBS3   | Memory pre-initialized to 0x0C, not 0 — affects scoreboard model   | Read seq before any writes                   | Cover pre-init memory read                  | —
