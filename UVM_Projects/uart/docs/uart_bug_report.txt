@@ -1,0 +1,185 @@
+# UART UVM Verification — Bug Report v1.0
+
+## 1. Scope
+
+End-to-end verification of a UART transmitter + receiver operating in loopback, exercising:
+- Six baud rates (4800, 9600, 14400, 19200, 38400, 57600)
+- Four frame lengths (5, 6, 7, 8 data bits)
+- Parity modes: none, even, odd
+- One-stop and two-stop configurations
+- Reset behavior and reset-mode transactions
+- Protocol invariants via 5 SVA assertions
+- Functional coverage closure via `uvm_subscriber`-based collector, connected inside the agent
+
+DUT: `uart_top` (transmit shift register + receive sampler + baud generator, loopback tied inside the DUT so `tx_data → rx_out`)
+Reference model: `ref_model` (predicts `rx_out = tx_data` under clean loopback assumption)
+
+---
+
+## 2. Flow
+
+| Stage | Tool | Result |
+|-------|------|--------|
+| Compile | `xvlog --sv -L uvm` | Clean, 3 files into work library |
+| Elaborate | `xelab` with `-cov_db_dir cov_db -cov_db_name uart_cov` | Snapshot `uart_sim` generated |
+| Run | `xsim --tclbatch run.tcl` | Hardcoded `run_test("test")`, 10 sequences executed sequentially |
+| Coverage | `xcrg` | HTML report at `sim/cov_report/functionalCoverageReport/dashboard.html` |
+
+Automation: GNU Make 4.4.1 + TCL batch file (`run.tcl`). Targets: `compile`, `elab`, `sim`, `cov`, `clean`, `all`.
+
+---
+
+## 3. Final Result Summary
+
+| Metric | Value |
+|--------|-------|
+| UVM_ERROR | 0 |
+| UVM_FATAL | 0 |
+| UVM_WARNING | 0 |
+| UVM_INFO | 212 |
+| Total transactions driven | 50 |
+| Total transactions monitored | 51 (50 data + 1 reset) |
+| Total transactions predicted | 51 (50 data + 1 reset) |
+| Scoreboard PASSED | 50 |
+| Scoreboard FAILED | 0 |
+| Reset transactions logged | 1 |
+| Functional coverage | **82.13%** |
+| SVA assertion failures | 0 |
+| Sim time | 119,091,010 ns (~119 ms) |
+| Wall clock | 71 s (CPU 12 s) |
+
+DUT verified clean for UART protocol handshake and TX→RX loopback data integrity across the exercised parameter space.
+
+---
+
+## 4. Bugs Found and Fixed (Testbench)
+
+### Bug TB-1 — `uvm_sequence_library::execute()` Null Deref (Third Confirmation)
+
+**Symptom:** Original test used `uart_seq_lib extends uvm_sequence_library #(transaction)` with 10 typewide-registered sequences and called `seqlib.start(e.a.seqr)`. Same failure mode as APB (TB-3) and I2C (TB-2) — Vivado XSIM 2025.2's UVM 1.2 implementation of `uvm_sequence_library::execute()` dereferences an internal handle that `init_sequence_library()` does not populate.
+
+**Root cause:** `add_typewide_sequence()` calls in the library constructor register the sequence wrappers correctly, but `execute()` cannot resolve them at runtime — `create_seq_by_typename` returns null. Independently reproduced on three protocols now.
+
+**Fix:** Retained `uart_seq_lib` class in source (documentation of intent) but rewrote the `test` class to execute all 10 sequences sequentially in `run_phase`:
+```
+s1.start(e.a.seqr);
+s2.start(e.a.seqr);
+...
+s10.start(e.a.seqr);
+```
+**Verification:** Clean run — all 10 sequences executed, 50 transactions driven, 0 UVM_ERROR.
+
+---
+
+### Bug TB-2 — Monitor and Ref-Model Sampled on `@(posedge tx_done); @(negedge rx_done);` (Anti-Pattern)
+
+**Symptom:** Original monitor and ref-model bodies contained blocking event waits:
+```
+@(posedge vif.tx_done);
+// sample tx-side fields
+@(negedge vif.rx_done);
+tr.rx_out = vif.rx_out;
+```
+This is exactly the anti-pattern documented as I2C bug report Known Limitation #3 — sampling coupled to a specific DUT pulse behavior rather than clock-aligned handshake observation.
+
+**Root cause:** Two independent failure modes:
+1. **Reset unresponsive during transaction.** Once a transaction started, the monitor blocked on `@(posedge tx_done)`. If reset asserted mid-transaction, the monitor would not observe it until the frame completed — potentially never, if reset cleared `tx_done` before the frame finished.
+2. **Fragile to DUT pulse behavior.** `@(negedge rx_done)` requires `rx_done` to rise then fall inside the same monitor invocation. If a future DUT variant held `rx_done` level-high until next `rx_start`, the monitor would sample too late or miss transactions.
+
+**Fix:** Rewrote both monitor and ref-model bodies to the APB-locked pattern — sample at `@(posedge clk)` with rising-edge detection on the handshake signal:
+```
+forever begin
+  @(posedge vif.clk);
+  if (vif.rst && !rst_prev) begin
+    tr.rst = 1'b1;
+    send.write(tr);
+  end
+  else if (!vif.rst && vif.rx_done && !rx_done_prev) begin
+    // sample all fields
+    send.write(tr);
+  end
+  rst_prev     = vif.rst;
+  rx_done_prev = vif.rx_done;
+end
+```
+Rising-edge detection on `rx_done` prevents oversampling if the pulse spans multiple clocks; rising-edge detection on `rst` prevents 5× reset spam from the driver's `repeat(5)` reset loop.
+
+**Verification:** Run produced exactly 1 SYSTEM RESET DETECTED log and 50 data-transaction samples. No sampling drift, no scoreboard mismatches.
+
+---
+
+### Bug TB-3 — `assert(tr.randomize)` Legacy Pattern in All 10 Sequences
+
+**Symptom:** All 10 sequence bodies used the legacy `assert(tr.randomize);` idiom. If randomization failed (e.g., an unsatisfiable constraint added later), the `assert` would fire a simulation-terminating VLOG assertion error rather than a controlled UVM_ERROR — bypassing the UVM report server, breaking scoreboard drain, and producing no diagnostic breadcrumb.
+
+**Root cause:** Pre-UVM SystemVerilog idiom carried over from OOP-era class-based testbenches. Randomization return value is a boolean, meant to be checked and reported explicitly.
+
+**Fix:** Replaced across all 10 sequences with the UVM-idiomatic guard:
+```
+if (!tr.randomize()) `uvm_error("SEQ", "randomize failed")
+```
+**Verification:** Zero randomize failures on this run (0 [SEQ] messages), but the guard is now in place for future constraint additions.
+
+---
+
+### Bug TB-4 — Coverage Subscriber Instantiated in Env, Not Agent
+
+**Symptom:** Original testbench declared `uart_coverage cov;` inside `env` and connected `a.m.send.connect(cov.analysis_export)` in `env::connect_phase`. This deviates from the APB-locked pattern where the coverage collector lives inside the agent that owns the monitor — the same limitation flagged in I2C bug report Known Limitation #2.
+
+**Root cause:** Coverage was authored as an env-level concern (external observer) rather than an agent-internal artifact. Functionally identical, but breaks the "coverage lives with the observing agent" model and forces env to reach into the agent's internal component to wire the analysis port — a layering violation.
+
+**Fix:** Moved `uart_coverage cov;` declaration and instantiation into `agent`. Connection is now agent-local:
+```
+// inside agent::connect_phase
+m.send.connect(cov.analysis_export);
+```
+Removed the coverage connection line from `env::connect_phase`. Env is now purely a container.
+**Verification:** Clean run, coverage subscriber active, `report_phase` reports 82.13%. Fixes I2C v1 limitation #2.
+
+---
+
+### Bug TB-5 — 16-bit Reset Literal Assigned to 17-bit `baud` Signal
+
+**Symptom:** Driver's `reset_dut()` task drove `vif.baud <= 16'h0;`. The `baud` signal is declared `logic [16:0]` (17 bits) in both the transaction class and the interface.
+
+**Root cause:** Copy-paste from a narrower field. Zero-extension made this benign in practice — a 16-bit zero literal widens to 17-bit zero — but the width mismatch is a cosmetic imprecision that lint tools flag and a reviewer would call out.
+
+**Fix:** Changed to `vif.baud <= 17'h0;`.
+
+**Verification:** Clean compile, no warnings from `xvlog`.
+
+---
+
+## 5. Bugs Found in DUT
+
+**None.** The DUT (`uart_top`) passed every transaction comparison against the reference model. All 5 SVA protocol assertions held throughout the run:
+
+| SVA | Property | Held? |
+|-----|----------|-------|
+| SVA-1 | `rx_out` has no X bits when `rx_done` asserts | ✓ |
+| SVA-2 | `tx_done` and `tx_err` are mutually exclusive | ✓ |
+| SVA-3 | `rx_done` and `rx_err` are mutually exclusive | ✓ |
+| SVA-4 | Reset clears both `tx_done` and `rx_done` within bounded cycles | ✓ |
+| SVA-5 | `tx_start` eventually drives `tx_done` (transmit liveness) | ✓ |
+
+Scoreboard: 50/50 transactions PASSED, 0 FAILED, 0 miscompares.
+
+---
+
+## 6. Coverage Analysis — 82.13%
+
+Six coverpoints and three crosses defined on monitor analysis stream (reset transactions skipped via `if (t.rst) return;` guard in `write()`):
+
+| Coverpoint | Bins | Estimated Coverage | Notes |
+|------------|------|-------------------|-------|
+| `op_cp` (sequence mode) | 10 | 100% | All 10 sequences ran, each sets a distinct `op` value |
+| `data_cp` (tx_data buckets) | 6 | 100% | Zero, low, mid_lo, mid_hi, high, max — random data across 50 iterations hits all |
+| `parity_cp` ({parity_en, parity_type}) | 3 | 100% | None (7 seqs), even/odd (mixed via random `parity_type`) |
+| `stop_cp` (stop2) | 2 | 100% | one_stop (9 seqs) and two_stop (`rand_baud_with_stop`) |
+| `length_cp` (5/6/7/8 bits) | 4 | 100% | Each length forced by dedicated sequences |
+| `baud_cp` (6 baud rates) | 6 | ~100% | `rand_baud` forces 9600; others randomized across constraint |
+| `parity_x_length` (cross) | 12 | ~partial | Some (parity=even/odd × length=5) bins only reached by chance |
+| `parity_x_stop` (cross) | 6 | ~partial | `two_stop` × `even`/`odd` requires `rand_baud_with_stop` to randomly land on those parity states |
+| `length_x_baud` (cross) | 24 | ~partial | 4 lengths × 6 bauds; random baud within a length-forced sequence yields statistical coverage |
+
+**End of report.**

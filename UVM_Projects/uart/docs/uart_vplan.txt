@@ -1,0 +1,26 @@
+ID     | Feature                                                            | Test/Sequence                                | Coverage point                              | Assertion
+-------|--------------------------------------------------------------------|----------------------------------------------|---------------------------------------------|------------------------------------------------
+F1     | Baud rate selection across 8 supported values                      | Seq covering all baud rates                  | Baud rate bins (4800..128000)               | —
+F2     | Reset clears both FSMs to idle and clears done/error outputs       | Reset sequence                               | Cover reset assertion                       | Reset forces both FSMs to idle
+F3     | TX data transmission length-configurable (5/6/7/8 bits)            | TX seq across all length values              | Length bins × TX op                         | —
+F4     | TX parity generation (odd/even, enabled via parity_en)             | TX seq across parity configs                 | Parity type × parity_en cross               | —
+F5     | TX stop bit framing (1 or 2 stop bits via stop2)                   | TX seq with stop2 = 0 and 1                  | Stop bit config bins                        | —
+F6     | tx_done pulse on TX frame completion                               | Random TX sequence                           | Cover tx_done=1                             | tx_done is single-cycle pulse
+F7     | RX data reception length-configurable, rx_out correctly formatted  | RX seq across all length values              | Length × RX op × rx_out bins                | rx_out no X when rx_done=1
+F8     | RX parity check sets rx_err on mismatch                            | Loopback with parity mismatch injection      | Cover rx_err=1 on parity path               | —
+F9     | RX stop bit check sets rx_err if stop bits invalid                 | Loopback with framing error injection        | Cover rx_err=1 on stop-bit path             | —
+F10    | rx_done pulse on RX frame completion                               | Random RX sequence                           | Cover rx_done=1                             | —
+F11    | Loopback: transmitted tx_data matches rx_out when configs align    | Paired TX+RX with matching configs           | Cross TX ops × RX ops × all configs         | rx_out equals tx_data on aligned loopback
+INV1   | tx_done is a single-cycle pulse                                    | Any baseline traffic                         | —                                           | tx_done high implies tx_done low next cycle
+INV2   | rx_out valid (no X) when rx_done=1                                 | Random RX sequences                          | —                                           | rx_done implies !$isunknown(rx_out)
+INV3   | Reset clears tx_done, rx_done, rx_err and forces FSMs to idle      | Reset sequence                               | —                                           | rst implies all done/err=0, FSMs=idle
+INV4   | rx_done and rx_err mutually exclusive                              | RX seq covering good and error frames        | —                                           | !(rx_done && rx_err)
+INV5   | Loopback correctness: rx_out matches tx_data when configs align    | Paired TX+RX with matching configs           | —                                           | rx_done implies rx_out == transmitted tx_data
+OOS1   | Hardware flow control (RTS/CTS)                                    | —                                            | —                                           | —
+OOS2   | Software flow control (XON/XOFF) and modem signals (DTR/DSR)       | —                                            | —                                           | —
+OOS3   | TX/RX FIFOs, DMA interface, interrupt generation                   | —                                            | —                                           | —
+OOS4   | Break detection, auto-baud, IrDA, 9-bit and smart card modes       | —                                            | —                                           | —
+OOS5   | Real UART wire interoperability (internal loopback only)           | —                                            | —                                           | —
+OBS1   | clk_gen multi-driver on rx_max/tx_max — synthesis error risk       | —                                            | —                                           | —
+OBS2   | RX datard blocking assignment in combinational — latch inference   | —                                            | —                                           | —
+OBS3   | tx_err is never asserted by RTL — declared but unused              | Any TX sequence                              | Cover tx_err always 0                       | —
